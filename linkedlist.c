@@ -56,6 +56,15 @@ struct node *del_last(struct node *head) {
     return head;
 
 }
+void free_list(struct node *head) {
+    struct node *ptr, *last;
+    ptr = head;
+    while(ptr) {
+        last = ptr;
+        ptr = ptr->next;
+        free(last);
+    }
+}
 
 void print(struct node *head) {
     struct node *ptr = head;
