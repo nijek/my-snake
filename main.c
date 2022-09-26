@@ -184,9 +184,9 @@ void add_board_walls(char board[HEIGHT][WIDTH]) {
             }
 }
 
-int new_game(int max_score) {
+int new_game(int max_score, int level) {
     
-    int clock_tick = 500000;
+    int clock_tick = (int)(CLOCKS_PER_SEC * ((float)(10-level))/20);
     int food_position[2], score;
     char board[HEIGHT][WIDTH];
     char key_pressed = 'a';
@@ -199,17 +199,9 @@ int new_game(int max_score) {
     snake = create(HEIGHT/2, WIDTH/2);
     add_board_walls(board);
     add_food(board, food_position);
-      
-    
-    initscr();
-    cbreak();
-    noecho();
-    nodelay(stdscr, TRUE);
-    scrollok(stdscr, TRUE);
-
     
     while(TRUE) {
-        clock_t target = clock() + 0.5*CLOCKS_PER_SEC;
+        clock_t target = clock() + clock_tick;
         /*wait key hit or time*/
         while (!kbhit() && clock() < target) {}
         if (kbhit()) {
@@ -243,13 +235,27 @@ int new_game(int max_score) {
 int main() {
     time_t t;
     char key_pressed;
-    int score, max_score;
+    int score, max_score, level;
     score = max_score = 0;
     srand((unsigned) time(&t));
 
+    initscr();
+    cbreak();
+    noecho();
+    nodelay(stdscr, TRUE);
+    scrollok(stdscr, TRUE);
+
     while(TRUE) {
         clear();
-        score = new_game(max_score);
+        printw("Qual nível de dificuldade (1..9)?\n");
+        while (!kbhit());
+        if (kbhit()) {   
+            key_pressed = getch();
+            level = key_pressed - '0';
+            refresh();
+        }
+
+        score = new_game(max_score, level);
         if(score > max_score) max_score = score;
         
         printw("\n\nvocê perdeu\n\n");
