@@ -6,8 +6,8 @@
 
 #include "linkedlist.h"
 
-#define HEIGHT 20
-#define WIDTH 50
+#define HEIGHT 1000
+#define WIDTH 1000
 #define TRUE 1
 #define FALSE 0
 
@@ -15,7 +15,9 @@
 
 void display(char board[HEIGHT][WIDTH], int max_i, int max_j, int score, int max_score) {
     int i, j;
+    clear();
     move(0, 0);	
+    printw("LINES: %d COLS: %d\n", LINES, COLS);
     printw("SCORE: %d MAX SCORE: %d\n", score, max_score);
     for(i = 0; i < max_i; i++) {
         for(j = 0; j < max_j; j++)
@@ -26,7 +28,7 @@ void display(char board[HEIGHT][WIDTH], int max_i, int max_j, int score, int max
 }
 
 int hit_wall(struct node *head) {
-    if (head->l == 0 || head->c == 0 || head->l == HEIGHT - 1 || head->c == WIDTH - 1)
+    if (head->l == 0 || head->c == 0 || head->l == LINES/2- 1 || head->c == COLS/2 - 1)
         return TRUE;
     return FALSE;
 }
@@ -101,6 +103,32 @@ struct node* increase_snake(struct node *head, char direction) {
 
 }
 
+//TODO: arrumar essa função
+struct node *reposition_snake(struct node *head) {
+    struct node *ptr;
+    ptr = head;
+    bool need_col_reposition = FALSE;
+    bool need_line_reposition = FALSE;
+    
+    while (ptr) {
+        if (ptr->c >= COLS/2 - 1) need_col_reposition = TRUE;
+        if (ptr->l >= LINES/2 - 1) need_line_reposition = TRUE;
+        ptr = ptr->next;
+    }
+    if (!(need_col_reposition || need_line_reposition)) return head;
+
+    ptr = head;
+    while (ptr) {
+        if (need_col_reposition) ptr->c--;
+        if(need_line_reposition) ptr->l--;
+        ptr = ptr->next;
+    }
+    return head;
+        
+
+}
+
+
 struct node *update_snake(char board[HEIGHT][WIDTH], struct node *head, char direction, char last_key) {
     int l,c;
     
@@ -137,9 +165,9 @@ struct node *update_snake(char board[HEIGHT][WIDTH], struct node *head, char dir
 int random_x() {
     int random;
     do {
-        random = rand() % HEIGHT;
+        random = rand() % LINES/2;
     }
-    while (random == 0 || random == HEIGHT - 1);
+    while (random == 0 || random == LINES/2 - 1);
     return random;
 
 }
@@ -147,9 +175,9 @@ int random_x() {
 int random_y() {
     int random;
     do {
-        random = rand() % WIDTH;
+        random = rand() % COLS/2;
     }
-    while (random == 0 || random == WIDTH - 1);
+    while (random == 0 || random == COLS/2 - 1);
     return random;
 
 }
@@ -174,10 +202,38 @@ void add_food(char board[HEIGHT][WIDTH], int food_position[2]) {
     food_position[1] = c;
 }
 
+
+void reposition_food(char board[HEIGHT][WIDTH], int food_position[2]) {
+    int last_c = food_position[1];
+    int last_l = food_position[0];
+    bool move_food = FALSE;
+    while(food_position[0] >= LINES/2 - 1 && food_position[0] >= 1) 
+    {
+    food_position[0]--; 
+    move_food = TRUE;
+    }
+    while(food_position[1] >= COLS/2 - 1 && food_position[1] >= 1) 
+    {
+        food_position[1]--;
+        move_food = TRUE;
+    }
+    /*se a comida se moveu é porque onde ela estava agora é uma parede*/
+    if (move_food)
+        board[last_l][last_c] = '#';
+
+    board[food_position[0]][food_position[1]] = '*';
+}
+
+void clear_board(char board[HEIGHT][WIDTH]) {
+    for (int i = 0; i < HEIGHT; i++)
+        for(int j = 0; j < WIDTH; j++)
+            board[i][j] = ' ';
+}
+
 void add_board_walls(char board[HEIGHT][WIDTH]) {
-        for (int i = 0; i < HEIGHT; i++)
-            for(int j = 0; j < WIDTH; j++) {
-                if (i == 0 || j == 0 || i == HEIGHT - 1 || j == WIDTH - 1) 
+        for (int i = 0; i < LINES/2; i++)
+            for(int j = 0; j < COLS/2; j++) {
+                if (i == 0 || j == 0 || i == LINES/2- 1 || j == COLS/2- 1) 
                     board[i][j] = '#';
                 else
                     board[i][j] = ' ';
@@ -190,30 +246,50 @@ int new_game(int max_score, int level) {
     int food_position[2], score;
     char board[HEIGHT][WIDTH];
     char key_pressed = 'a';
-    char last_key = '\n';
+    char last_key1, last_key2;
+    last_key1 = last_key2 = '\n';
+    int last_col = COLS; int last_lines=LINES;
+  
     
     score = 0;
     
     struct node *snake = NULL;
     
-    snake = create(HEIGHT/2, WIDTH/2);
+    snake = create(LINES/4, COLS/4);
     add_board_walls(board);
     add_food(board, food_position);
     
     while(TRUE) {
+        
         clock_t target = clock() + clock_tick;
         /*wait key hit or time*/
+        
         while (!kbhit() && clock() < target) {}
         if (kbhit()) {
-            last_key = key_pressed;    
+            last_key2 = last_key1;
+            last_key1 = key_pressed;    
             key_pressed = getch();
+            
+        //terminal resizing
+        if (key_pressed == KEY_RESIZE || key_pressed == -102) {
+            clear_board(board);
+            add_board_walls(board);
+            reposition_food(board, food_position);
+            //snake = reposition_snake(snake); <- não está funcionando
+            display(board, LINES/2, COLS/2, score, max_score);
+          
+            key_pressed = last_key1;
+            last_key1 = last_key2;  
+        }
+
+        
             refresh();
         }
         
         clear_snake(board, snake);
-        snake = update_snake(board, snake, key_pressed, last_key);
+        snake = update_snake(board, snake, key_pressed, last_key1);
         add_snake(board, snake);   
-        display(board, HEIGHT, WIDTH, score, max_score);
+        display(board, LINES/2, COLS/2, score, max_score);
         
         if (hit_food(snake, food_position)) {
             score += 1;
@@ -221,7 +297,7 @@ int new_game(int max_score, int level) {
             add_food(board, food_position);
             snake = increase_snake(snake, key_pressed);
             add_snake(board, snake);
-            display(board, HEIGHT, WIDTH, score, max_score);
+            display(board, LINES/2, COLS/2, score, max_score);
 
         }
 
@@ -258,11 +334,11 @@ int main() {
         score = new_game(max_score, level);
         if(score > max_score) max_score = score;
         
+        
         printw("\n\nvocê perdeu\n\n");
         printw("SCORE: %d MELHOR SCORE: %d\n", score, max_score);
-        flushinp();
         printw("Quer tentar novamente? S/n");
-        
+         
         while (!kbhit());
         if (kbhit()) {   
             key_pressed = getch();
